@@ -4,12 +4,33 @@ library(dplyr)
 library(stringr)
 library(purrr)
 
-d <- read_xlsx("data/RedCAP_WordLevelDatabase_Novel_Adj_R21_SRCLD_2026_n20.xlsx")
+
+## Word Library ######################
+phon_acc <- read_xlsx("data/WordLevelDatabase_Novel_Noun_R21_SRCLD_03_23_2026 1.xlsx",
+                      sheet = "Phonetic_Accuracy") %>%
+  select("Word", "Learning Condition", "Time", "Taught/Gen", "Set", "Variable_Name_Redcap" = "...10") %>%
+  mutate(measure = "phonetic_accuracy") %>% 
+  unique()
+recall <- read_xlsx("data/WordLevelDatabase_Novel_Noun_R21_SRCLD_03_23_2026 1.xlsx",
+                    sheet = "Word_Form") %>%
+  select("Word", "Learning Condition", "Time", "Taught/Gen", "Set","Variable_Name_Redcap" ) %>%
+  mutate(measure = "recall_accuracy") %>%
+  unique()
+
+lib <- rbind(phon_acc, recall) %>% unique()
+##################################
+
+d <- read.csv("data/RetrievalBasedWordLe_DATA_2026-08-10_1159.csv")
 rules_path <- "data/Formatting Sheet.xlsx"
 
 d_test <- d %>%
-  select("record_id", "age_awl","examiners_id_awl", starts_with("test")) %>%
-  filter(!record_id == 1)
+  select("record_id", "age_awl","examiners_id_awl", starts_with(c("test","total","gen"))) %>%
+  filter(!record_id == 1) %>%
+  pivot_longer(cols = starts_with(c("test_","total","gen")),
+               names_to = "Variable_Name_Redcap",
+               values_to = "value") %>%
+  left_join(lib) %>%
+  arrange(record_id, Word)
 
 long_by_excel_rules <- function(data, rules_file, sheet = 1) {
   
@@ -67,9 +88,10 @@ parse_rest <- function(df, rest_col = "rest") {
 
 
 
-x <- long_by_excel_rules(d_test, rules_path, sheet = 2)
+x <- long_by_excel_rules(d_test, rules_path, sheet = 1)
 z <- parse_rest(x,"extra")
 write.csv(x, "data/Long-formatted_test.csv")
 
 write.csv(z, "data/Long-formatted_extraparsed.csv")
+
 
